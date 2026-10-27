@@ -1,0 +1,653 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ForestWatch | Dashboard Hotspot Kalteng</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+<style>
+:root {
+  --bg:#06130e; --panel:#0c2118; --panel2:#102b20;
+  --green:#55f59a; --mint:#a4ffca; --text:#eafff1;
+  --muted:#8aaf9a; --line:#204332;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:
+  radial-gradient(ellipse at 80% 0%,#174b31 0,transparent 34%),
+  radial-gradient(ellipse at 0% 70%,#103522 0,transparent 30%),var(--bg);
+  color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+button,input,select{font:inherit}
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+aside{padding:28px 18px;border-right:1px solid var(--line);background:#071810dd}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:40px}
+.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#76ffad,#159b5a);display:grid;place-items:center;color:#062113;font-size:24px;box-shadow:0 0 24px #39e98955}
+.brand strong{letter-spacing:1.5px;font-size:16px}
+.brand small{display:block;color:var(--muted);font-size:10px;margin-top:4px;letter-spacing:1px}
+.nav-label{color:#688b76;font-size:10px;letter-spacing:2px;margin:22px 10px 10px}
+.nav{padding:12px;border-radius:10px;color:#a6c7b3;margin:5px 0;font-size:13px}
+.nav.active{background:#163c29;color:var(--mint);border:1px solid #2c6545}
+.side-note{margin-top:38px;padding:14px;background:#10271c;border:1px solid var(--line);border-radius:13px;color:var(--muted);font-size:11px;line-height:1.7}
+main{padding:28px 32px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:26px}
+.eyebrow{color:var(--green);font-size:10px;letter-spacing:2.5px;font-weight:700}
+h1{font-size:clamp(24px,3vw,34px);margin:8px 0;font-weight:700;letter-spacing:-1px}
+.sub{font-size:12px;color:var(--muted);line-height:1.6}
+.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.btn{background:#163c29;border:1px solid #2c6545;color:var(--mint);padding:11px 14px;border-radius:10px;cursor:pointer;font-size:12px}
+.btn:hover{box-shadow:0 0 18px #36ef8740}
+.btn.primary{background:linear-gradient(120deg,#6affaa,#22bd70);color:#062113;font-weight:700;border:0}
+#file{display:none}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.control{background:#0b2017;border:1px solid var(--line);color:var(--text);padding:11px 13px;border-radius:10px;font-size:12px;min-width:145px}
+.control:focus{outline:1px solid var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:17px}
+.card{background:linear-gradient(145deg,#10291e,#0a1c14);border:1px solid #214532;border-radius:16px;padding:18px;min-width:0;box-shadow:inset 0 1px #ffffff05}
+.kpi-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kpi-label{color:#a1c1ad;font-size:11px}
+.kpi-icon{width:32px;height:32px;border-radius:10px;background:#19452d;color:var(--green);display:grid;place-items:center}
+.kpi-value{font-size:clamp(22px,2.4vw,31px);font-weight:750;letter-spacing:-1px;margin:17px 0 7px;overflow-wrap:anywhere}
+.glow{color:var(--mint);text-shadow:0 0 18px #5df59a30}
+.kpi-foot{font-size:10px;color:var(--muted);line-height:1.5}
+.section-title{font-size:14px;font-weight:700;margin:0}
+.section-desc{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6}
+.charts{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:15px;margin-bottom:17px}
+.chart-card{background:linear-gradient(145deg,#0e2419,#091a12);border:1px solid var(--line);border-radius:16px;padding:19px;min-width:0}
+.chart-head{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:18px}
+.chart-wrap{height:270px;position:relative}
+.map-card{background:linear-gradient(145deg,#0e2419,#091a12);border:1px solid var(--line);border-radius:16px;padding:19px;margin-bottom:17px}
+.map-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:14px}
+.map-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#hotspotMap{height:390px;border:1px solid var(--line);border-radius:12px;background:#10251c;z-index:0}
+.map-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:10px}
+.legend-item{display:flex;align-items:center;gap:7px}
+.legend-dot{width:10px;height:10px;border-radius:50%;background:#ff754f;box-shadow:0 0 8px #ff754f88}
+.legend-center{width:10px;height:10px;border-radius:50%;background:#8aa6ff;box-shadow:0 0 8px #8aa6ff88}
+.map-note{color:var(--muted);font-size:10px;line-height:1.6;margin-top:10px}
+.leaflet-container{font-family:Inter,"Segoe UI",Arial,sans-serif}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0c2118;color:var(--text)}
+.leaflet-popup-content{font-size:12px;line-height:1.7}
+.leaflet-control-attribution{font-size:9px!important}
+.leaflet-control-layers{color:#eafff1!important;background:#0c2118eF!important;border:1px solid #204332!important;border-radius:9px!important}
+.leaflet-control-layers-separator{border-top-color:#204332!important}
+.leaflet-control-layers label{font-size:11px}
+.leaflet-control-layers-toggle{background-color:#0c2118!important}
+.leaflet-control-layers-expanded{padding:9px 11px}
+.nav{display:block;width:100%;text-align:left;background:transparent;border:0;cursor:pointer}
+.nav:hover{background:#10291e;color:var(--mint)}
+.table-card{background:#0a1d14;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:17px}
+.table-head{padding:19px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.table-scroll{overflow:auto;max-height:390px}
+table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
+th{position:sticky;top:0;background:#163626;color:#a9d7b9;text-align:left;padding:13px 16px;font-size:10px;letter-spacing:.5px}
+td{padding:12px 16px;border-top:1px solid #183526;color:#d3e8da}
+tbody tr:hover{background:#102d1e}
+.pill{background:#153c27;color:#90f8b5;padding:5px 8px;border-radius:7px;font-size:10px}
+.status{display:flex;gap:8px;align-items:center;color:#a2c7b0;font-size:11px}
+.dot{height:7px;width:7px;border-radius:50%;background:#5af39b;box-shadow:0 0 9px #5af39b}
+.notice{padding:14px 16px;border-radius:12px;border:1px solid #69572b;background:#282415;color:#e4d4a2;font-size:11px;line-height:1.8;margin-bottom:17px}
+footer{padding:12px 0 25px;color:#648974;font-size:10px;line-height:1.8}
+.empty{padding:35px;text-align:center;color:var(--muted);font-size:12px}
+.landing{min-height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;padding:28px clamp(22px,6vw,92px);background:radial-gradient(ellipse at 78% 48%,#164b3066 0,transparent 38%),radial-gradient(ellipse at 0% 100%,#103522 0,transparent 35%),var(--bg)}
+.landing:before,.landing:after{content:"";position:absolute;pointer-events:none;border:1px solid #55f59a12;border-radius:50%;width:520px;height:520px;right:-175px;top:15%;box-shadow:0 0 0 55px #55f59a08,0 0 0 110px #55f59a05}
+.landing:after{width:330px;height:330px;right:-80px;top:25%;box-shadow:0 0 0 1px #55f59a12}
+.landing-nav{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.landing-brand{display:flex;align-items:center;gap:12px}
+.landing-brand .logo{flex:none}
+.landing-brand strong{letter-spacing:1.5px;font-size:16px}
+.landing-brand small{display:block;color:var(--muted);font-size:10px;margin-top:4px;letter-spacing:1px}
+.landing-tag{border:1px solid #2c6545;border-radius:999px;padding:9px 13px;color:var(--mint);font-size:10px;letter-spacing:1.2px}
+.landing-content{position:relative;z-index:1;flex:1;max-width:1180px;min-height:0;width:100%;margin:auto;display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:50px;padding:45px 0}
+.landing-copy{max-width:650px}
+.landing-eyebrow{display:flex;align-items:center;gap:10px;color:var(--green);font-size:10px;font-weight:700;letter-spacing:2.4px}
+.landing-eyebrow:before{content:"";width:25px;height:1px;background:var(--green)}
+.landing h1{font-size:clamp(42px,6vw,76px);line-height:1.04;letter-spacing:-3px;margin:22px 0 20px}
+.landing-description{max-width:560px;color:#a8c6b3;font-size:15px;line-height:1.9}
+.landing-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:30px}
+.landing-cta{padding:15px 20px;font-size:13px;display:inline-flex;align-items:center;gap:12px}
+.landing-hint{font-size:11px;color:#779985}
+.landing-visual{min-height:390px;position:relative;display:grid;place-items:center}
+.radar{width:min(360px,75vw);aspect-ratio:1;border:1px solid #55f59a36;border-radius:50%;position:relative;background:radial-gradient(circle,#53f19512 0 2px,transparent 3px),linear-gradient(90deg,transparent 49.8%,#55f59a1c 50%,transparent 50.2%),linear-gradient(transparent 49.8%,#55f59a1c 50%,transparent 50.2%),radial-gradient(circle,transparent 34%,#55f59a18 34.3%,transparent 34.7% 60%,#55f59a18 60.3%,transparent 60.7%)}
+.radar:before{content:"";position:absolute;inset:12%;border-radius:50%;background:conic-gradient(from 25deg,transparent 0deg,#55f59a18 44deg,transparent 78deg);animation:radar-sweep 12s linear infinite}
+.radar-center{position:absolute;inset:0;display:grid;place-items:center}
+.radar-pin{width:14px;height:14px;border:3px solid #082015;background:var(--green);border-radius:50%;box-shadow:0 0 0 8px #55f59a26,0 0 30px #55f59a}
+.radar-dot{position:absolute;width:8px;height:8px;background:#a4ffca;border-radius:50%;box-shadow:0 0 14px #55f59a}
+.radar-dot.one{top:26%;left:62%}.radar-dot.two{top:60%;left:30%}.radar-dot.three{top:72%;left:67%}
+.map-label{position:absolute;color:#a4ffca;font-size:9px;letter-spacing:1.3px}
+.map-label.top{top:7%;left:50%;transform:translateX(-50%)}
+.map-label.bottom{bottom:8%;left:50%;transform:translateX(-50%)}
+.visual-card{position:absolute;padding:13px 15px;border:1px solid #2c6545;background:#0b2017eF;border-radius:12px;box-shadow:0 12px 40px #0005}
+.visual-card span{display:block;color:#86a994;font-size:9px;letter-spacing:1px}
+.visual-card strong{display:block;color:var(--mint);font-size:13px;margin-top:6px}
+.visual-card.card-a{top:16%;left:0}.visual-card.card-b{right:-2%;bottom:16%}
+.landing-foot{position:relative;z-index:1;color:#648974;font-size:10px;letter-spacing:.5px}
+.app[hidden],.landing[hidden]{display:none}
+@keyframes radar-sweep{to{transform:rotate(360deg)}}
+@media(max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}}
+@media(max-width:680px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px 14px}.kpis{gap:9px}.card{padding:13px}.chart-card{padding:14px}.chart-wrap{height:240px}.map-card{padding:14px}#hotspotMap{height:310px}}
+@media(max-width:760px){.landing{padding:22px 20px}.landing-content{grid-template-columns:1fr;gap:5px;padding:60px 0 24px}.landing-copy{z-index:1}.landing h1{font-size:clamp(42px,12vw,64px)}.landing-description{font-size:13px}.landing-visual{min-height:290px}.radar{width:255px}.visual-card.card-a{left:3%}.visual-card.card-b{right:1%}.landing-foot{padding-bottom:10px}}
+</style>
+</head>
+<body>
+<section class="landing" id="landing">
+  <div class="landing-nav">
+    <div class="landing-brand">
+      <div class="logo">♧</div>
+      <div><strong>FORESTWATCH</strong><small>FIRE INTELLIGENCE</small></div>
+    </div>
+    <div class="landing-tag">● &nbsp; MONITORING KALIMANTAN TENGAH</div>
+  </div>
+  <div class="landing-content">
+    <div class="landing-copy">
+      <div class="landing-eyebrow">ENVIRONMENTAL INTELLIGENCE</div>
+      <h1>Kenali pola.<br><span class="glow">Pantau lebih dini.</span></h1>
+      <p class="landing-description">Platform analisis hotspot kebakaran hutan dan lahan di Kalimantan Tengah. Jelajahi tren bulanan, bandingkan wilayah, dan pantau data berdasarkan periode.</p>
+      <div class="landing-actions">
+        <button class="btn primary landing-cta" id="enterDashboard">Buka Dashboard Analisis <span aria-hidden="true">→</span></button>
+        <span class="landing-hint">Unggah workbook Excel untuk mulai melihat data</span>
+      </div>
+    </div>
+    <div class="landing-visual" aria-hidden="true">
+      <div class="radar">
+        <span class="map-label top">PUSAT PEMANTAUAN</span>
+        <span class="map-label bottom">KALIMANTAN TENGAH</span>
+        <span class="radar-dot one"></span><span class="radar-dot two"></span><span class="radar-dot three"></span>
+        <div class="radar-center"><span class="radar-pin"></span></div>
+      </div>
+      <div class="visual-card card-a"><span>AREA MONITORING</span><strong>Kalimantan Tengah</strong></div>
+      <div class="visual-card card-b"><span>ANALISIS</span><strong>Tren · Wilayah · Periode</strong></div>
+    </div>
+  </div>
+  <div class="landing-foot">FORESTWATCH &nbsp;·&nbsp; DASHBOARD ANALISIS HOTSPOT</div>
+</section>
+
+<div class="app" id="dashboard" hidden>
+<aside>
+  <div class="brand">
+    <div class="logo">♧</div>
+    <div><strong>FORESTWATCH</strong><small>FIRE INTELLIGENCE</small></div>
+  </div>
+  <div class="nav-label">WORKSPACE</div>
+  <button class="nav active" data-target="overview">◈ &nbsp; Overview</button>
+  <button class="nav" data-target="analysis">▥ &nbsp; Analisis Hotspot</button>
+  <button class="nav" data-target="explorer">▤ &nbsp; Data Explorer</button>
+  <div class="nav-label">WILAYAH MONITORING</div>
+  <div class="nav">⌖ &nbsp; Kalimantan Tengah</div>
+  <div class="side-note">
+    <span style="color:var(--mint)">● SISTEM ANALISIS</span><br><br>
+    Dashboard analisis data hotspot kebakaran hutan dan lahan. Unggah workbook Excel untuk menampilkan data.
+  </div>
+</aside>
+
+<main>
+  <div class="top" id="overview">
+    <div>
+      <div class="eyebrow">ENVIRONMENTAL INTELLIGENCE / 01</div>
+      <h1>Forest <span class="glow">Hotspot</span> Analytics</h1>
+      <div class="sub">Monitoring hotspot kebakaran hutan dan lahan · Provinsi Kalimantan Tengah</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="backToLanding">← Beranda</button>
+      <input id="file" type="file" accept=".xlsx,.xls,.csv">
+      <button class="btn primary" onclick="document.getElementById('file').click()">↑ Unggah Excel</button>
+      <button class="btn" onclick="downloadCSV()">↓ Ekspor CSV</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <select class="control" id="yearFilter"><option value="all">Semua tahun</option></select>
+    <select class="control" id="monthFilter"><option value="all">Semua bulan</option></select>
+    <select class="control" id="regionFilter"><option value="all">Semua kabupaten/kota</option></select>
+    <input class="control" id="search" placeholder="⌕ Cari data..." />
+  </div>
+
+  <div class="notice" id="notice">
+    <b>Mulai di sini:</b> klik “Unggah Excel” dan pilih file Data_Hotspot_Kalteng_2024_2025_Diperbarui.xlsx. Data dibaca di browser kamu. Data 2025 hanya tersedia sampai 15 Oktober pada sumber yang digunakan.
+  </div>
+
+  <div class="kpis">
+    <div class="card">
+      <div class="kpi-top"><span class="kpi-label">Total hotspot terfilter</span><span class="kpi-icon">✳</span></div>
+      <div class="kpi-value glow" id="totalKpi">—</div>
+      <div class="kpi-foot">Berdasarkan baris data yang ditampilkan</div>
+    </div>
+    <div class="card">
+      <div class="kpi-top"><span class="kpi-label">Periode terpilih</span><span class="kpi-icon">◷</span></div>
+      <div class="kpi-value" id="yearKpi">—</div>
+      <div class="kpi-foot">Tahun pada filter saat ini</div>
+    </div>
+    <div class="card">
+      <div class="kpi-top"><span class="kpi-label">Bulan dengan hotspot tertinggi</span><span class="kpi-icon">↗</span></div>
+      <div class="kpi-value" id="peakKpi">—</div>
+      <div class="kpi-foot" id="peakFoot">Dari data yang tersedia</div>
+    </div>
+    <div class="card">
+      <div class="kpi-top"><span class="kpi-label">Kabupaten/kota terdata</span><span class="kpi-icon">⌖</span></div>
+      <div class="kpi-value" id="regionKpi">—</div>
+      <div class="kpi-foot">Jumlah wilayah unik dalam data terfilter</div>
+    </div>
+  </div>
+
+  <section class="map-card" id="analysis">
+    <div class="map-head">
+      <div>
+        <div class="section-title">Peta Sebaran Hotspot</div>
+        <div class="section-desc">Batas wilayah Kalimantan Tengah dan ringkasan hotspot dari data yang dimuat</div>
+      </div>
+      <div class="map-actions">
+        <input id="boundaryFile" type="file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+        <button class="btn" id="uploadBoundary">Unggah SHP (.zip)</button>
+        <span class="pill" id="mapStatus">MENUNGGU DATA</span>
+      </div>
+    </div>
+    <div id="hotspotMap" role="application" aria-label="Peta ringkasan hotspot Kalimantan Tengah"></div>
+    <div class="map-legend">
+      <span class="legend-item"><span class="legend-dot"></span>Agregat kabupaten/kota</span>
+      <span class="legend-item"><span class="legend-center"></span>Rekap provinsi</span>
+      <span>Ukuran lingkaran menunjukkan jumlah hotspot</span>
+    </div>
+    <div class="map-note" id="mapMessage">Pilih peta Jalan atau Satelit melalui kontrol lapisan di kanan atas peta. Unggah ZIP shapefile batas administrasi Kalimantan Tengah untuk menampilkan batas wilayah. Titik hotspot merupakan agregat dan bukan koordinat kejadian. Peta dan parser SHP memerlukan koneksi internet.</div>
+  </section>
+
+  <div class="charts">
+    <div class="chart-card">
+      <div class="chart-head"><div><div class="section-title">Tren Hotspot Bulanan</div><div class="section-desc">Jumlah hotspot per bulan menurut tahun dan cakupan sumber</div></div><span class="pill">MONTHLY TREND</span></div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><div><div class="section-title">Distribusi Wilayah</div><div class="section-desc">Perbandingan kabupaten/kota dari data yang memiliki rincian wilayah</div></div></div>
+      <div class="chart-wrap"><canvas id="regionChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <div class="chart-head"><div><div class="section-title">Perbandingan Tahun</div><div class="section-desc">Total pada periode yang tercakup sumber masing-masing</div></div></div>
+      <div class="chart-wrap"><canvas id="yearChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><div><div class="section-title">Ringkasan Dataset</div><div class="section-desc">Ketersediaan dan cakupan data yang dimuat</div></div></div>
+      <div id="datasetInfo" class="sub" style="line-height:2.2">Belum ada file yang dimuat.</div>
+    </div>
+  </div>
+
+  <div class="table-card" id="explorer">
+    <div class="table-head">
+      <div><div class="section-title">Data Explorer</div><div class="section-desc" id="rowCount">Belum ada data</div></div>
+      <button class="btn" onclick="downloadCSV()">Ekspor tabel</button>
+    </div>
+    <div class="table-scroll">
+      <table><thead><tr><th>Tahun</th><th>Bulan</th><th>Kabupaten/Kota</th><th>Jumlah Hotspot</th><th>Cakupan</th></tr></thead>
+      <tbody id="dataBody"><tr><td colspan="5" class="empty">Unggah file Excel untuk mulai menjelajahi data.</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <footer>
+    FORESTWATCH · Dashboard analisis hotspot Kalimantan Tengah<br>
+    Sumber data mengikuti workbook yang diunggah. Hotspot satelit merupakan deteksi termal dan bukan selalu kebakaran yang terkonfirmasi di lapangan.
+  </footer>
+</main>
+</div>
+
+<script>
+const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const monthMap = Object.fromEntries(months.map((m,i)=>[m.toLowerCase(),i]));
+let raw = [];
+let charts = {};
+let hotspotMap = null;
+let hotspotMarkers = null;
+let boundaryLayer = null;
+let layerControl = null;
+const colors = ["#55f59a","#55c8a0","#a4ffca","#e4d58a","#7ecca3","#39a96b","#b2f5c9"];
+const regionCoordinates = {
+  "barito selatan":[-1.82,114.82],
+  "barito timur":[-1.92,115.13],
+  "barito utara":[-1.34,115.18],
+  "gunung mas":[-1.02,113.56],
+  "kapuas":[-2.77,114.38],
+  "katingan":[-1.88,113.40],
+  "kotawaringin barat":[-2.66,111.62],
+  "kotawaringin timur":[-2.54,112.95],
+  "lamandau":[-1.87,111.28],
+  "murung raya":[-0.63,114.57],
+  "palangka raya":[-2.21,113.92],
+  "pulang pisau":[-2.75,113.95],
+  "seruyan":[-2.54,112.20],
+  "sukamara":[-2.63,111.24]
+};
+
+function num(v){
+  if(typeof v==="number") return v;
+  if(v==null || v==="") return null;
+  const s=String(v).trim().replace(/\s/g,"");
+  if(!s || s==="-" || s==="—") return null;
+  const n=Number(s.replace(/\.(?=\d{3}(\D|$))/g,"").replace(",","."));
+  return Number.isFinite(n)?n:null;
+}
+function monthIndex(v){
+  if(v==null) return -1;
+  if(typeof v==="number" && v>=1 && v<=12) return v-1;
+  const s=String(v).toLowerCase().trim();
+  if(monthMap[s]!==undefined) return monthMap[s];
+  const found=months.findIndex(m=>m.toLowerCase().startsWith(s));
+  if(found>=0) return found;
+  const n=Number(s);
+  return n>=1 && n<=12 ? n-1 : -1;
+}
+function normalizeHeader(v){return String(v??"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function findCol(headers, terms){
+  return headers.findIndex(h=>terms.some(t=>normalizeHeader(h).includes(t)));
+}
+function getRows(sheet){
+  return XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,raw:true});
+}
+function detectHeader(rows, kind){
+  for(let i=0;i<Math.min(rows.length,12);i++){
+    const hs=rows[i].map(normalizeHeader);
+    const hasMonth=hs.some(h=>h.includes("bulan")||h==="month");
+    const hasHot=hs.some(h=>h.includes("hotspot")||h.includes("titikapi"));
+    const hasRegion=hs.some(h=>h.includes("kabupaten")||h.includes("kabkota")||h.includes("wilayah")||h==="daerah");
+    if(hasMonth && hasHot && (kind==="2025" || hasRegion)) return i;
+  }
+  return -1;
+}
+function parseWorkbook(wb){
+  const result=[];
+  for(const sheetName of wb.SheetNames){
+    const yearMatch=sheetName.match(/20(23|24|25|26)/);
+    const year=yearMatch?Number(yearMatch[0]):null;
+    if(!year) continue;
+    const rows=getRows(wb.Sheets[sheetName]);
+    if(!rows.length) continue;
+    const headerIndex=detectHeader(rows,String(year));
+    if(headerIndex<0) continue;
+    const headers=rows[headerIndex];
+    const cMonth=findCol(headers,["bulan","month"]);
+    const cHot=findCol(headers,["jumlahhotspot","hotspot","titikapi"]);
+    const cRegion=findCol(headers,["kabupatenkota","kabupaten","kabkota","wilayah","daerah"]);
+    const cCoverage=findCol(headers,["cakupan","periode","keterangan"]);
+    const cYear=findCol(headers,["tahun","year"]);
+    if(cMonth<0||cHot<0) continue;
+    for(const r of rows.slice(headerIndex+1)){
+      const mi=monthIndex(r[cMonth]);
+      const value=num(r[cHot]);
+      if(mi<0||value===null) continue;
+      const rowYear=cYear>=0&&num(r[cYear])?num(r[cYear]):year;
+      const region=cRegion>=0&&r[cRegion]!=null?String(r[cRegion]).trim():"Rekap Provinsi";
+      const coverage=cCoverage>=0&&r[cCoverage]!=null?String(r[cCoverage]):(year===2025?"Hingga 15 Oktober 2025":"Sesuai sumber");
+      if(!rowYear || !region) continue;
+      result.push({year:Number(rowYear),month:mi,region,value,coverage,sheet:sheetName});
+    }
+  }
+  // Fallback for monthly 2025 tables with headers in the first row or alternative names
+  if(!result.some(d=>d.year===2025)){
+    for(const sheetName of wb.SheetNames.filter(s=>/2025/.test(s))){
+      const rows=getRows(wb.Sheets[sheetName]);
+      for(let i=0;i<Math.min(rows.length,10);i++){
+        const h=rows[i].map(normalizeHeader);
+        const mc=h.findIndex(x=>x.includes("bulan")||x==="month");
+        const vc=h.findIndex(x=>x.includes("hotspot")||x.includes("jumlah"));
+        if(mc<0||vc<0) continue;
+        rows.slice(i+1).forEach(r=>{
+          const mi=monthIndex(r[mc]),v=num(r[vc]);
+          if(mi>=0&&v!==null) result.push({year:2025,month:mi,region:"Rekap Provinsi",value:v,coverage:"Sesuai periode laporan",sheet:sheetName});
+        });
+        break;
+      }
+    }
+  }
+  return result;
+}
+function filtered(){
+  const y=document.getElementById("yearFilter").value;
+  const m=document.getElementById("monthFilter").value;
+  const reg=document.getElementById("regionFilter").value;
+  const q=document.getElementById("search").value.toLowerCase().trim();
+  return raw.filter(d=>(y==="all"||String(d.year)===y)&&(m==="all"||String(d.month)===m)&&(reg==="all"||d.region===reg)&&(!q||(d.region+" "+months[d.month]+" "+d.year).toLowerCase().includes(q)));
+}
+function sum(a){return a.reduce((s,d)=>s+d.value,0)}
+function fmt(n){return Number(n).toLocaleString("id-ID",{maximumFractionDigits:0})}
+function setText(id,t){document.getElementById(id).textContent=t}
+function setupFilters(){
+  const years=[...new Set(raw.map(d=>d.year))].sort();
+  const regions=[...new Set(raw.map(d=>d.region))].sort();
+  const yf=document.getElementById("yearFilter"),rf=document.getElementById("regionFilter");
+  yf.innerHTML='<option value="all">Semua tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join("");
+  rf.innerHTML='<option value="all">Semua kabupaten/kota</option>'+regions.map(r=>`<option value="${escapeHTML(r)}">${escapeHTML(r)}</option>`).join("");
+  document.getElementById("monthFilter").innerHTML='<option value="all">Semua bulan</option>'+months.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function drawChart(id,type,data,options={}){
+  if(charts[id]) charts[id].destroy();
+  const ctx=document.getElementById(id);
+  charts[id]=new Chart(ctx,{type,data,options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:"#b9d8c4",boxWidth:10,font:{size:10}}}},
+    scales:type==="doughnut"?{}:{
+      x:{ticks:{color:"#9ab9a5",font:{size:10}},grid:{color:"#1b3828"}},
+      y:{beginAtZero:true,ticks:{color:"#9ab9a5",font:{size:10},callback:v=>Number(v).toLocaleString("id-ID")},grid:{color:"#1b3828"}}
+    },...options
+  }});
+}
+function initHotspotMap(){
+  if(hotspotMap){
+    hotspotMap.invalidateSize();
+    return;
+  }
+  const status=document.getElementById("mapStatus");
+  if(!window.L){
+    status.textContent="PETA TIDAK TERSEDIA";
+    status.title="Pustaka peta gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.";
+    return;
+  }
+  hotspotMap=L.map("hotspotMap").setView([-1.9,113.7],6);
+  const roadLayer=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:18
+  });
+  const satelliteLayer=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{
+    attribution:'Tiles &copy; Esri',
+    maxZoom:19
+  });
+  roadLayer.addTo(hotspotMap);
+  layerControl=L.control.layers({"Jalan (OpenStreetMap)":roadLayer,"Satelit (Esri)":satelliteLayer},{}).addTo(hotspotMap);
+  hotspotMarkers=L.layerGroup().addTo(hotspotMap);
+  updateHotspotMap(filtered());
+}
+function normalizeRegion(region){
+  return String(region).toLowerCase().replace(/^(kabupaten|kab\.?)\s+/,"").trim();
+}
+function updateHotspotMap(data){
+  if(!hotspotMap||!hotspotMarkers) return;
+  hotspotMarkers.clearLayers();
+  if(!data.length){
+    document.getElementById("mapStatus").textContent=raw.length?"TIDAK ADA DATA":"MENUNGGU DATA";
+    return;
+  }
+  const grouped=new Map();
+  data.forEach(d=>{
+    const key=d.region.trim();
+    const item=grouped.get(key)||{region:key,total:0};
+    item.total+=d.value;
+    grouped.set(key,item);
+  });
+  let mapped=0,unmapped=0,hasProvincialSummary=false;
+  for(const item of grouped.values()){
+    const isProvince=/^rekap provinsi$/i.test(item.region);
+    const point=isProvince?[-1.9,113.7]:regionCoordinates[normalizeRegion(item.region)];
+    if(!point){
+      unmapped++;
+      continue;
+    }
+    if(isProvince) hasProvincialSummary=true;
+    const radius=Math.min(24,7+Math.sqrt(Math.max(item.total,0))*0.55);
+    const marker=L.circleMarker(point,{
+      radius,weight:2,color:isProvince?"#8aa6ff":"#ff754f",
+      fillColor:isProvince?"#8aa6ff":"#ff754f",fillOpacity:.72
+    });
+    marker.bindPopup(`<b>${escapeHTML(item.region)}</b><br>${fmt(item.total)} hotspot tercatat<br><small>Lokasi perkiraan wilayah, bukan titik kejadian</small>`);
+    marker.addTo(hotspotMarkers);
+    mapped++;
+  }
+  const parts=[];
+  if(mapped) parts.push(`${mapped} wilayah ditampilkan`);
+  if(unmapped) parts.push(`${unmapped} wilayah belum terpetakan`);
+  document.getElementById("mapStatus").textContent=parts.join(" · ").toUpperCase()||"TIDAK ADA WILAYAH TERPETAKAN";
+  if(hasProvincialSummary) hotspotMap.setView([-1.9,113.7],6);
+}
+async function loadBoundary(file){
+  const status=document.getElementById("mapStatus");
+  const message=document.getElementById("mapMessage");
+  if(!file) return;
+  if(!window.shp){
+    status.textContent="PARSER SHP TIDAK TERSEDIA";
+    message.textContent="Pustaka pembaca SHP gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.";
+    return;
+  }
+  status.textContent="MEMBACA BATAS WILAYAH…";
+  message.textContent=`Memuat ${file.name}. Gunakan ZIP shapefile yang berisi berkas .shp, .shx, .dbf, dan .prj.`;
+  try{
+    const parsed=await window.shp(await file.arrayBuffer());
+    const features=Array.isArray(parsed)?parsed.flatMap(layer=>layer.features||[]):parsed.features;
+    if(!features||!features.length){
+      throw new Error("ZIP tidak berisi fitur SHP yang dapat ditampilkan.");
+    }
+    if(boundaryLayer) hotspotMap.removeLayer(boundaryLayer);
+    boundaryLayer=L.geoJSON({type:"FeatureCollection",features},{
+      style:{color:"#a4ffca",weight:2.5,opacity:.95,fillColor:"#55f59a",fillOpacity:.08},
+      onEachFeature:(feature,layer)=>{
+        const properties=feature.properties||{};
+        const name=Object.values(properties).find(value=>typeof value==="string"&&value.trim());
+        if(name) layer.bindPopup(escapeHTML(name));
+      }
+    }).addTo(hotspotMap);
+    if(layerControl) layerControl.addOverlay(boundaryLayer,"Batas SHP Kalteng");
+    const bounds=boundaryLayer.getBounds();
+    if(bounds.isValid()) hotspotMap.fitBounds(bounds.pad(.08));
+    status.textContent="BATAS SHP DIMUAT";
+    message.textContent=`Batas dari ${file.name} berhasil ditampilkan. Pastikan ZIP tersebut memang berisi batas administrasi Kalimantan Tengah.`;
+  }catch(error){
+    status.textContent="GAGAL MEMUAT SHP";
+    message.textContent=error instanceof Error?`Tidak dapat membaca ${file.name}: ${error.message}`:`Tidak dapat membaca ${file.name}. Pastikan ZIP berisi shapefile yang valid.`;
+    console.error("Gagal memuat shapefile:",error);
+  }
+}
+function update(){
+  const data=filtered();
+  setText("totalKpi",fmt(sum(data)));
+  const years=[...new Set(data.map(d=>d.year))];
+  setText("yearKpi",years.length===1?years[0]:years.length?`${years.length} tahun`:"—");
+  const byMonth=months.map((m,i)=>({m,total:sum(data.filter(d=>d.month===i))})).sort((a,b)=>b.total-a.total);
+  setText("peakKpi",data.length&&byMonth[0].total>0?byMonth[0].m:"—");
+  setText("peakFoot",data.length&&byMonth[0].total>0?fmt(byMonth[0].total)+" hotspot tercatat":"Belum tersedia");
+  setText("regionKpi",new Set(data.map(d=>d.region)).size||"—");
+  updateHotspotMap(data);
+
+  const yearsAll=[...new Set(raw.map(d=>d.year))].sort();
+  const trendSets=yearsAll.map((y,i)=>({
+    label:String(y),
+    data:months.map((m,mi)=>{
+      const ds=data.filter(d=>d.year===y&&d.month===mi);
+      return ds.length?sum(ds):null;
+    }),
+    borderColor:colors[i%colors.length],backgroundColor:colors[i%colors.length]+"22",
+    borderWidth:2,tension:.35,spanGaps:false,pointRadius:3,pointHoverRadius:6
+  }));
+  drawChart("trendChart","line",{labels:months,datasets:trendSets},{plugins:{legend:{position:"bottom",labels:{color:"#b9d8c4",boxWidth:10,font:{size:10}}}}});
+
+  const regionTotals=[...new Set(data.map(d=>d.region))]
+    .map(r=>({r,total:sum(data.filter(d=>d.region===r))}))
+    .filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,10);
+  drawChart("regionChart","bar",{
+    labels:regionTotals.map(x=>x.r),
+    datasets:[{label:"Hotspot",data:regionTotals.map(x=>x.total),backgroundColor:"#4be98e",borderRadius:5}]
+  },{indexAxis:"y",plugins:{legend:{display:false}}});
+
+  drawChart("yearChart","bar",{
+    labels:yearsAll.map(String),
+    datasets:[{label:"Jumlah pada cakupan data",data:yearsAll.map(y=>sum(raw.filter(d=>d.year===y))),backgroundColor:yearsAll.map((_,i)=>colors[i%colors.length]),borderRadius:6}]
+  },{plugins:{legend:{display:false}}});
+
+  const body=document.getElementById("dataBody");
+  setText("rowCount",`${fmt(data.length)} baris ditampilkan`);
+  if(!data.length){
+    body.innerHTML='<tr><td colspan="5" class="empty">Tidak ada data yang cocok dengan filter. Periksa format Excel atau ubah filter.</td></tr>';
+  }else{
+    body.innerHTML=data.slice().sort((a,b)=>b.year-a.year||a.month-b.month||a.region.localeCompare(b.region))
+      .map(d=>`<tr><td>${d.year}</td><td>${months[d.month]}</td><td>${escapeHTML(d.region)}</td><td><b>${fmt(d.value)}</b></td><td><span class="pill">${escapeHTML(d.coverage)}</span></td></tr>`).join("");
+  }
+  const summary=[...new Set(raw.map(d=>d.year))].sort().map(y=>{
+    const n=raw.filter(d=>d.year===y);
+    const regions=new Set(n.map(d=>d.region)).size;
+    const note=y===2025?"Data parsial hingga 15 Oktober; rekap provinsi.":y===2024?"Rekap bulanan per kabupaten/kota.":"Cakupan sesuai workbook.";
+    return `<div><span style="color:var(--mint)">${y}</span> · ${fmt(sum(n))} catatan nilai · ${regions} wilayah/kategori<br><span style="color:var(--muted);font-size:10px">${note}</span></div>`;
+  }).join("<br>");
+  document.getElementById("datasetInfo").innerHTML=summary||"Belum ada file yang dimuat.";
+}
+document.getElementById("enterDashboard").addEventListener("click",()=>{
+  document.getElementById("landing").hidden=true;
+  document.getElementById("dashboard").hidden=false;
+  window.scrollTo({top:0,behavior:"instant"});
+  Object.values(charts).forEach(chart=>chart.resize());
+  initHotspotMap();
+});
+document.getElementById("backToLanding").addEventListener("click",()=>{
+  document.getElementById("dashboard").hidden=true;
+  document.getElementById("landing").hidden=false;
+  window.scrollTo({top:0,behavior:"instant"});
+});
+document.querySelectorAll("aside .nav[data-target]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    document.querySelectorAll("aside .nav[data-target]").forEach(nav=>nav.classList.toggle("active",nav===button));
+    document.getElementById(button.dataset.target).scrollIntoView({behavior:"smooth",block:"start"});
+    if(button.dataset.target==="analysis"&&hotspotMap) setTimeout(()=>hotspotMap.invalidateSize(),250);
+  });
+});
+document.getElementById("uploadBoundary").addEventListener("click",()=>{
+  document.getElementById("boundaryFile").click();
+});
+document.getElementById("boundaryFile").addEventListener("change",async event=>{
+  const file=event.target.files[0];
+  if(file) await loadBoundary(file);
+  event.target.value="";
+});
+document.getElementById("file").addEventListener("change",async e=>{
+  const file=e.target.files[0]; if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    raw=parseWorkbook(wb);
+    if(!raw.length){
+      document.getElementById("notice").innerHTML="<b>Format belum terbaca.</b> Periksa nama sheet dan kolom Bulan, Hotspot/Jumlah Hotspot, serta Kabupaten/Kota. Nama sheet yang mengandung tahun akan dikenali.";
+      return;
+    }
+    setupFilters();
+    document.getElementById("notice").innerHTML=`<b>Excel berhasil dibaca.</b> ${fmt(raw.length)} baris nilai dimuat dari ${escapeHTML(file.name)}. Gunakan filter untuk mengeksplorasi data.`;
+    update();
+  }catch(err){
+    document.getElementById("notice").textContent="File tidak dapat dibaca. Pastikan formatnya Excel (.xlsx/.xls) atau CSV.";
+    console.error(err);
+  }
+});
+["yearFilter","monthFilter","regionFilter","search"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",update);
+});
+function downloadCSV(){
+  const data=filtered();
+  if(!data.length){alert("Belum ada data. Unggah Excel terlebih dahulu.");return;}
+  const rows=[["Tahun","Bulan","Kabupaten/Kota","Jumlah Hotspot","Cakupan"],
+    ...data.map(d=>[d.year,months[d.month],d.region,d.value,d.coverage])];
+  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="data_hotspot_kalteng.csv";a.click();URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
